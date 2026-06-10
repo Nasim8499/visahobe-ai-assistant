@@ -17,26 +17,10 @@ const QUICK_CHIPS = [
 ];
 
 const PROMPT_CARDS = [
-  {
-    title: "Visa Consultancy Content",
-    desc: "Generate destination guides, requirement lists, FAQs.",
-    accent: "from-cyan-500/20 to-blue-500/20",
-  },
-  {
-    title: "Worker Recruitment Funnel",
-    desc: "Plan a multi-channel campaign for blue-collar hires.",
-    accent: "from-blue-500/20 to-violet-500/20",
-  },
-  {
-    title: "SEO Keyword Cluster",
-    desc: "Build a topical cluster around a target keyword.",
-    accent: "from-violet-500/20 to-fuchsia-500/20",
-  },
-  {
-    title: "Document Generator",
-    desc: "Create offer letters, contracts, application forms.",
-    accent: "from-fuchsia-500/20 to-pink-500/20",
-  },
+  { title: "Visa Content", desc: "Guides & FAQs", accent: "from-cyan-500/20 to-blue-500/20" },
+  { title: "Recruitment", desc: "Hiring funnel", accent: "from-blue-500/20 to-violet-500/20" },
+  { title: "SEO Cluster", desc: "Keyword map", accent: "from-violet-500/20 to-fuchsia-500/20" },
+  { title: "Documents", desc: "Offers & forms", accent: "from-fuchsia-500/20 to-pink-500/20" },
 ];
 
 export default function Assistant() {
@@ -94,18 +78,18 @@ export default function Assistant() {
             Your agency-grade assistant for digital marketing, visa content, recruitment campaigns and automation.
           </p>
 
-          <div className="mt-8 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mt-8 flex w-full flex-wrap justify-center gap-2">
             {PROMPT_CARDS.map((c) => (
               <button
                 key={c.title}
                 onClick={() => send(c.title + ": " + c.desc)}
                 className={cn(
-                  "group relative overflow-hidden rounded-2xl border border-border bg-card p-4 text-left shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow"
+                  "group relative overflow-hidden rounded-full border border-border bg-card px-4 py-2 text-xs font-medium shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow"
                 )}
               >
-                <div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-60 transition-opacity group-hover:opacity-100", c.accent)} />
-                <p className="text-sm font-semibold">{c.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{c.desc}</p>
+                <div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-50 transition-opacity group-hover:opacity-90", c.accent)} />
+                <span className="font-semibold">{c.title}</span>
+                <span className="ml-1.5 text-muted-foreground">· {c.desc}</span>
               </button>
             ))}
           </div>
