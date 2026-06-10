@@ -1,32 +1,41 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Paperclip, Image as ImageIcon, FileText, Mic, ArrowUp,
-  Wand2, Code2, Mail, Megaphone, Languages, Lightbulb
+  Wand2, Code2, Mail, Megaphone, Languages, Lightbulb,
+  Briefcase, Users, Search, FileSignature, Rows3, LayoutGrid, Grid2x2, Printer, Minimize2, Maximize2
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { cn } from "@/lib/utils";
 
 const QUICK_CHIPS = [
-  { icon: Wand2, label: "Write marketing copy" },
-  { icon: Megaphone, label: "Ad campaign ideas" },
-  { icon: Mail, label: "Draft cold email" },
-  { icon: Languages, label: "Translate to Arabic" },
-  { icon: Code2, label: "Generate landing code" },
-  { icon: Lightbulb, label: "Brainstorm SEO topics" },
+  { icon: Wand2, label: "Write marketing copy", short: "Copy" },
+  { icon: Megaphone, label: "Ad campaign ideas", short: "Ads" },
+  { icon: Mail, label: "Draft cold email", short: "Email" },
+  { icon: Languages, label: "Translate to Arabic", short: "Translate" },
+  { icon: Code2, label: "Generate landing code", short: "Code" },
+  { icon: Lightbulb, label: "Brainstorm SEO topics", short: "SEO" },
 ];
 
 const PROMPT_CARDS = [
-  { title: "Visa Content", desc: "Guides & FAQs", accent: "from-cyan-500/20 to-blue-500/20" },
-  { title: "Recruitment", desc: "Hiring funnel", accent: "from-blue-500/20 to-violet-500/20" },
-  { title: "SEO Cluster", desc: "Keyword map", accent: "from-violet-500/20 to-fuchsia-500/20" },
-  { title: "Documents", desc: "Offers & forms", accent: "from-fuchsia-500/20 to-pink-500/20" },
+  { title: "Visa Content", short: "Visa", desc: "Guides & FAQs", icon: Briefcase, accent: "from-cyan-500/20 to-blue-500/20" },
+  { title: "Recruitment", short: "Hire", desc: "Hiring funnel", icon: Users, accent: "from-blue-500/20 to-violet-500/20" },
+  { title: "SEO Cluster", short: "SEO", desc: "Keyword map", icon: Search, accent: "from-violet-500/20 to-fuchsia-500/20" },
+  { title: "Documents", short: "Docs", desc: "Offers & forms", icon: FileSignature, accent: "from-fuchsia-500/20 to-pink-500/20" },
 ];
+
+type PromptStyle = "segmented" | "pill" | "compact" | "icons";
 
 export default function Assistant() {
   const { chats, activeChatId, newChat, addMessage } = useApp();
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [promptStyle, setPromptStyle] = useState<PromptStyle>(
+    () => (localStorage.getItem("visahobe.promptStyle") as PromptStyle) || "segmented"
+  );
+  const [compact, setCompact] = useState<boolean>(
+    () => localStorage.getItem("visahobe.compact") === "1"
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
@@ -34,6 +43,14 @@ export default function Assistant() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [activeChat?.messages.length, thinking]);
+
+  useEffect(() => {
+    localStorage.setItem("visahobe.promptStyle", promptStyle);
+  }, [promptStyle]);
+  useEffect(() => {
+    localStorage.setItem("visahobe.compact", compact ? "1" : "0");
+    document.documentElement.classList.toggle("compact", compact);
+  }, [compact]);
 
   const send = (text?: string) => {
     const content = (text ?? input).trim();
@@ -57,45 +74,92 @@ export default function Assistant() {
 
   const hasChat = activeChat && activeChat.messages.length > 0;
 
+  const printPDF = () => {
+    document.documentElement.classList.add("print-a4");
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => document.documentElement.classList.remove("print-a4"), 500);
+    }, 50);
+  };
+
+  const styleOptions = useMemo(
+    () => [
+      { id: "segmented" as const, icon: Rows3, label: "Segmented" },
+      { id: "pill" as const, icon: LayoutGrid, label: "Pills" },
+      { id: "compact" as const, icon: Grid2x2, label: "Cards" },
+      { id: "icons" as const, icon: Sparkles, label: "Icons" },
+    ],
+    []
+  );
+
   return (
-    <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-4 sm:px-6">
+    <div className={cn(
+      "mx-auto flex w-full max-w-5xl flex-col px-4 sm:px-6",
+      compact ? "h-[calc(100vh-3.5rem)]" : "h-[calc(100vh-3.5rem)]"
+    )}>
       {!hasChat ? (
-        <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
+        <div id="assistant-printable" className={cn("flex flex-1 flex-col items-center justify-center text-center", compact ? "py-3" : "py-8")}>
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="relative mb-6"
+            className={cn("relative", compact ? "mb-3" : "mb-6")}
           >
             <div className="absolute inset-0 -z-10 rounded-full bg-gradient-hero blur-3xl opacity-40 animate-pulse-soft" />
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-hero shadow-glow">
-              <Sparkles className="h-7 w-7 text-white" />
+            <div className={cn("flex items-center justify-center rounded-2xl bg-gradient-hero shadow-glow", compact ? "h-12 w-12" : "h-16 w-16")}>
+              <Sparkles className={cn("text-white", compact ? "h-5 w-5" : "h-7 w-7")} />
             </div>
           </motion.div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className={cn("font-semibold tracking-tight", compact ? "text-2xl sm:text-3xl" : "text-3xl sm:text-5xl")}>
             Hi, I'm <span className="text-gradient">VisaHOBe AI</span>
           </h1>
-          <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
-            Your agency-grade assistant for digital marketing, visa content, recruitment campaigns and automation.
-          </p>
+          {!compact && (
+            <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
+              Your agency-grade assistant for digital marketing, visa content, recruitment and automation.
+            </p>
+          )}
 
-          <div className="mt-8 flex w-full flex-wrap justify-center gap-2">
-            {PROMPT_CARDS.map((c) => (
-              <button
-                key={c.title}
-                onClick={() => send(c.title + ": " + c.desc)}
-                className={cn(
-                  "group relative overflow-hidden rounded-full border border-border bg-card px-4 py-2 text-xs font-medium shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow"
-                )}
-              >
-                <div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-50 transition-opacity group-hover:opacity-90", c.accent)} />
-                <span className="font-semibold">{c.title}</span>
-                <span className="ml-1.5 text-muted-foreground">· {c.desc}</span>
-              </button>
-            ))}
+          {/* Controls: style toggle + compact + print */}
+          <div className={cn("flex w-full flex-wrap items-center justify-center gap-2 print:hidden", compact ? "mt-4" : "mt-6")}>
+            <div className="inline-flex items-center rounded-full border border-border bg-card/80 p-1 shadow-card backdrop-blur">
+              {styleOptions.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setPromptStyle(s.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition-smooth",
+                    promptStyle === s.id
+                      ? "bg-gradient-hero text-white shadow-glow"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <s.icon className="h-3 w-3" />
+                  <span className="hidden sm:inline">{s.label}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setCompact((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-card hover:text-foreground"
+            >
+              {compact ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
+              {compact ? "Cozy" : "Compact"}
+            </button>
+            <button
+              onClick={printPDF}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-card hover:text-foreground"
+            >
+              <Printer className="h-3 w-3" />
+              A4 PDF
+            </button>
+          </div>
+
+          {/* Prompt shortcuts in chosen style */}
+          <div className={cn("w-full", compact ? "mt-4" : "mt-6")}>
+            <PromptShortcuts style={promptStyle} compact={compact} onPick={send} />
           </div>
         </div>
       ) : (
-        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto py-6">
+        <div ref={scrollRef} id="assistant-printable" className={cn("flex-1 space-y-4 overflow-y-auto", compact ? "py-3" : "py-6")}>
           {activeChat!.messages.map((m) => (
             <motion.div
               key={m.id}
@@ -105,10 +169,10 @@ export default function Assistant() {
             >
               <div
                 className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-card",
+                  "max-w-[85%] text-sm",
                   m.role === "user"
-                    ? "bg-gradient-hero text-white"
-                    : "border border-border bg-card text-card-foreground"
+                    ? "rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-card"
+                    : "text-foreground"
                 )}
               >
                 {m.content}
@@ -121,7 +185,7 @@ export default function Assistant() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card"
+                className="flex items-center gap-2 text-sm text-muted-foreground"
               >
                 <span className="flex gap-1">
                   <span className="h-2 w-2 animate-bounce rounded-full bg-primary" />
@@ -135,19 +199,21 @@ export default function Assistant() {
         </div>
       )}
 
-      <div className="sticky bottom-0 pb-4 pt-2">
-        <div className="mb-3 flex flex-wrap gap-2">
-          {QUICK_CHIPS.map((c) => (
-            <button
-              key={c.label}
-              onClick={() => send(c.label)}
-              className="flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur transition-smooth hover:bg-secondary hover:text-foreground"
-            >
-              <c.icon className="h-3 w-3" />
-              {c.label}
-            </button>
-          ))}
-        </div>
+      <div className={cn("sticky bottom-0 print:hidden", compact ? "pb-2 pt-1" : "pb-4 pt-2")}>
+        {!compact && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {QUICK_CHIPS.map((c) => (
+              <button
+                key={c.label}
+                onClick={() => send(c.label)}
+                className="flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur transition-smooth hover:bg-secondary hover:text-foreground"
+              >
+                <c.icon className="h-3 w-3" />
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="relative rounded-3xl border border-border bg-card p-2 shadow-card">
           <div className="absolute inset-0 -z-10 rounded-3xl bg-gradient-hero opacity-20 blur-xl" />
@@ -161,7 +227,7 @@ export default function Assistant() {
               }
             }}
             placeholder="Ask VisaHOBe AI anything..."
-            rows={2}
+            rows={compact ? 1 : 2}
             className="block w-full resize-none rounded-2xl bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
           />
           <div className="flex items-center justify-between px-2 pb-1">
@@ -180,10 +246,104 @@ export default function Assistant() {
             </button>
           </div>
         </div>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
-          Frontend preview — connect API keys for live responses.
-        </p>
+        {!compact && (
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Frontend preview — connect API keys for live responses.
+          </p>
+        )}
       </div>
+    </div>
+  );
+}
+
+function PromptShortcuts({
+  style,
+  compact,
+  onPick,
+}: {
+  style: PromptStyle;
+  compact: boolean;
+  onPick: (text: string) => void;
+}) {
+  if (style === "segmented") {
+    return (
+      <div className="mx-auto w-full overflow-x-auto">
+        <div className="mx-auto inline-flex min-w-full items-stretch divide-x divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card sm:min-w-0">
+          {PROMPT_CARDS.map((c) => (
+            <button
+              key={c.title}
+              onClick={() => onPick(`${c.title}: ${c.desc}`)}
+              className="group relative flex-1 px-3 py-2.5 text-center text-xs font-medium transition-smooth hover:bg-secondary"
+            >
+              <div className="flex items-center justify-center gap-1.5">
+                <c.icon className="h-3.5 w-3.5 text-primary" />
+                <span className="sm:hidden">{c.short}</span>
+                <span className="hidden sm:inline">{c.title}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (style === "icons") {
+    return (
+      <div className="flex flex-wrap justify-center gap-3">
+        {PROMPT_CARDS.map((c) => (
+          <button
+            key={c.title}
+            onClick={() => onPick(`${c.title}: ${c.desc}`)}
+            className="group flex w-20 flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-hero text-white shadow-glow">
+              <c.icon className="h-4 w-4" />
+            </div>
+            <span className="text-[11px] font-medium">{c.short}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (style === "compact") {
+    return (
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {PROMPT_CARDS.map((c) => (
+          <button
+            key={c.title}
+            onClick={() => onPick(`${c.title}: ${c.desc}`)}
+            className={cn(
+              "group relative overflow-hidden rounded-xl border border-border bg-card text-left shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow",
+              compact ? "p-2.5" : "p-3"
+            )}
+          >
+            <div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-50 transition-opacity group-hover:opacity-90", c.accent)} />
+            <div className="flex items-center gap-2">
+              <c.icon className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-semibold">{c.title}</span>
+            </div>
+            {!compact && <p className="mt-1 text-[11px] text-muted-foreground">{c.desc}</p>}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // pill
+  return (
+    <div className="flex flex-wrap justify-center gap-2">
+      {PROMPT_CARDS.map((c) => (
+        <button
+          key={c.title}
+          onClick={() => onPick(`${c.title}: ${c.desc}`)}
+          className="group relative overflow-hidden rounded-full border border-border bg-card px-4 py-2 text-xs font-medium shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow"
+        >
+          <div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-50 transition-opacity group-hover:opacity-90", c.accent)} />
+          <span className="font-semibold">{c.title}</span>
+          {!compact && <span className="ml-1.5 text-muted-foreground">· {c.desc}</span>}
+        </button>
+      ))}
     </div>
   );
 }
