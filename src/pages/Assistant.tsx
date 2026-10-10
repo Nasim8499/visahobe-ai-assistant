@@ -1,276 +1,69 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Sparkles, Paperclip, Image as ImageIcon, FileText, Mic, ArrowUp,
-  Wand2, Code2, Mail, Megaphone, Languages, Lightbulb,
-  Briefcase, Users, Search, FileSignature, Rows3, LayoutGrid, Grid2x2, Printer, Minimize2, Maximize2, Eye
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowUp, ArrowUpRight, FileText, Printer, ShieldCheck, Rows3, Grid2x2, LayoutGrid, Minimize2, Maximize2, Copy, Globe2, Users, Megaphone } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { AGENTS } from "@/data/agents";
+import { Button } from "@/components/ui/button";
+import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
+import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from "@/components/ai-elements/message";
+import { PromptInput, PromptInputTextarea, PromptInputFooter, PromptInputSubmit } from "@/components/ai-elements/prompt-input";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
-import { visaKnowledge } from "@/data/visaKnowledge";
+import { toast } from "sonner";
+import mascot from "@/assets/visa-assistant.png";
 
-const QUICK_CHIPS = [
-  { icon: Briefcase, label: "Prepare A4 visa checklist", short: "Visa" },
-  { icon: FileSignature, label: "Draft cover letter structure", short: "Cover" },
-  { icon: Users, label: "Client document QA", short: "QA" },
-  { icon: Mail, label: "Client follow-up message", short: "Email" },
-  { icon: Search, label: "Country workflow checklist", short: "Country" },
-  { icon: Lightbulb, label: "Missing document review", short: "Review" },
-];
-
-const PROMPT_CARDS = [
-  { title: "Visa Documents", short: "Docs", desc: "A4-ready pack", icon: FileSignature, accent: "from-cyan-500/20 to-blue-500/20" },
-  { title: "Passport Intake", short: "OCR", desc: "Verify data", icon: Briefcase, accent: "from-blue-500/20 to-violet-500/20" },
-  { title: "Client QA", short: "QA", desc: "Review gaps", icon: Search, accent: "from-violet-500/20 to-fuchsia-500/20" },
-  { title: "Recruitment", short: "Hire", desc: "Worker pipeline", icon: Users, accent: "from-fuchsia-500/20 to-pink-500/20" },
-];
-
-type PromptStyle = "segmented" | "pill" | "compact" | "icons";
-
+type PromptStyle = 'segmented' | 'pill' | 'compact' | 'icons';
 export default function Assistant() {
-  const { chats, activeChatId, newChat, addMessage } = useApp();
-  const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const [promptStyle, setPromptStyle] = useState<PromptStyle>(
-    () => (localStorage.getItem("visahobe.promptStyle") as PromptStyle) || "segmented"
-  );
-  const [compact, setCompact] = useState<boolean>(
-    () => localStorage.getItem("visahobe.compact") === "1"
-  );
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [activeChat?.messages.length, thinking]);
-
-  useEffect(() => {
-    localStorage.setItem("visahobe.promptStyle", promptStyle);
-  }, [promptStyle]);
-  useEffect(() => {
-    localStorage.setItem("visahobe.compact", compact ? "1" : "0");
-    document.documentElement.classList.toggle("compact", compact);
-  }, [compact]);
-
-  const createPreviewResponse = (content: string) => {
-    const pack = visaKnowledge.documentPacks.slice(0, 5).join(" · ");
-    const countries = visaKnowledge.countries.slice(0, 6).join(", ");
-    return [
-      `VisaHOBe Brain Mushroom is using the company visa-document knowledge base for: "${content}".`,
-      "",
-      "A4-ready consultant output structure:",
-      "1. Applicant summary from verified client data only.",
-      "2. Passport and identity field review.",
-      "3. Required supporting document checklist.",
-      "4. Cover letter / explanation structure.",
-      "5. Consultant QA notes before submission.",
-      "",
-      `Default document pack: ${pack}.`,
-      `Active workflow countries include: ${countries}, and more.`,
-      "",
-      "Compliance: this assistant must not create fake records, forged evidence, or misleading visa materials. It prepares lawful review drafts only. Use A4 PDF for print-ready consultant review."
-    ].join("\n");
-  };
-
-  const send = (text?: string) => {
-    const content = (text ?? input).trim();
-    if (!content) return;
-    let id = activeChatId;
-    if (!id) id = newChat();
-    addMessage(id, { role: "user", content });
-    setInput("");
-    setThinking(true);
-    setTimeout(() => {
-      addMessage(id!, {
-        role: "assistant",
-        content: createPreviewResponse(content),
-      });
-      setThinking(false);
-    }, 650);
-  };
-
-  const hasChat = activeChat && activeChat.messages.length > 0;
-
-  const printPDF = () => {
-    document.documentElement.classList.add("print-a4");
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => document.documentElement.classList.remove("print-a4"), 500);
-    }, 50);
-  };
-
-  const styleOptions = useMemo(
-    () => [
-      { id: "segmented" as const, icon: Rows3, label: "Segmented" },
-      { id: "pill" as const, icon: LayoutGrid, label: "Pills" },
-      { id: "compact" as const, icon: Grid2x2, label: "Cards" },
-      { id: "icons" as const, icon: Sparkles, label: "Icons" },
-    ],
-    []
-  );
-
-  return (
-    <div className={cn("mx-auto flex w-full max-w-5xl flex-col px-4 sm:px-6", "h-[calc(100vh-3.5rem)]")}>
-      {!hasChat ? (
-        <div id="assistant-printable" className={cn("flex flex-1 flex-col items-center justify-center text-center", compact ? "py-3" : "py-8")}>
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className={cn("relative", compact ? "mb-3" : "mb-6")}
-          >
-            <div className="absolute inset-0 -z-10 rounded-full bg-gradient-hero blur-3xl opacity-40 animate-pulse-soft" />
-            <div className={cn("flex items-center justify-center rounded-2xl bg-gradient-hero shadow-glow", compact ? "h-12 w-12" : "h-16 w-16")}>
-              <Sparkles className={cn("text-white", compact ? "h-5 w-5" : "h-7 w-7")} />
-            </div>
-          </motion.div>
-          <h1 className={cn("font-semibold tracking-tight", compact ? "text-2xl sm:text-3xl" : "text-3xl sm:text-5xl")}>
-            Hi, I'm <span className="text-gradient">VisaHOBe AI</span>
-          </h1>
-          {!compact && (
-            <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-              Company-only Brain Mushroom for lawful visa documents, A4 print-ready consultant packs, passport intake, recruitment workflow, and client QA review.
-            </p>
-          )}
-
-          <div className={cn("mt-5 grid w-full gap-3 print:hidden sm:grid-cols-3", compact ? "hidden" : "")}> 
-            <div className="rounded-2xl border border-border bg-card/80 p-4 text-left shadow-card backdrop-blur">
-              <p className="text-xs font-semibold text-primary">Brain Mushroom</p>
-              <p className="mt-1 text-xs text-muted-foreground">VisaHOBe company knowledge base connected for visa-document workflows.</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card/80 p-4 text-left shadow-card backdrop-blur">
-              <p className="text-xs font-semibold text-primary">A4 by default</p>
-              <p className="mt-1 text-xs text-muted-foreground">Every output is prepared for review, printing, and PDF export.</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card/80 p-4 text-left shadow-card backdrop-blur">
-              <p className="text-xs font-semibold text-primary">Verified data only</p>
-              <p className="mt-1 text-xs text-muted-foreground">No fake records, no forged evidence, no misleading documents.</p>
-            </div>
-          </div>
-
-          <div className={cn("flex w-full flex-wrap items-center justify-center gap-2 print:hidden", compact ? "mt-4" : "mt-6")}>
-            <div className="inline-flex items-center rounded-full border border-border bg-card/80 p-1 shadow-card backdrop-blur">
-              {styleOptions.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setPromptStyle(s.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition-smooth",
-                    promptStyle === s.id ? "bg-gradient-hero text-white shadow-glow" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <s.icon className="h-3 w-3" />
-                  <span className="hidden sm:inline">{s.label}</span>
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setCompact((v) => !v)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-card hover:text-foreground">
-              {compact ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
-              {compact ? "Cozy" : "Compact"}
-            </button>
-            <button onClick={printPDF} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-card hover:text-foreground">
-              <Printer className="h-3 w-3" /> A4 PDF
-            </button>
-            <button onClick={() => send("Create a Gemini-style site preview for VisaHOBe A4 visa document workflow")} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-card hover:text-foreground">
-              <Eye className="h-3 w-3" /> Site Preview
-            </button>
-          </div>
-
-          <div className={cn("w-full", compact ? "mt-4" : "mt-6")}>
-            <PromptShortcuts style={promptStyle} compact={compact} onPick={send} />
-          </div>
-        </div>
-      ) : (
-        <div ref={scrollRef} id="assistant-printable" className={cn("flex-1 space-y-4 overflow-y-auto", compact ? "py-3" : "py-6")}>
-          {activeChat!.messages.map((m) => (
-            <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={cn("flex w-full", m.role === "user" ? "justify-end" : "justify-start")}>
-              <div className={cn("max-w-[85%] whitespace-pre-wrap text-sm", m.role === "user" ? "rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-card" : "text-foreground")}>
-                {m.content}
-              </div>
-            </motion.div>
-          ))}
-          <AnimatePresence>
-            {thinking && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="flex gap-1">
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-accent" style={{ animationDelay: "120ms" }} />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-fuchsia-500" style={{ animationDelay: "240ms" }} />
-                </span>
-                Preparing A4-ready visa document preview...
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
-
-      <div className={cn("sticky bottom-0 print:hidden", compact ? "pb-2 pt-1" : "pb-4 pt-2")}>
-        {!compact && (
-          <div className="mb-3 flex flex-wrap gap-2">
-            {QUICK_CHIPS.map((c) => (
-              <button key={c.label} onClick={() => send(c.label)} className="flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur transition-smooth hover:bg-secondary hover:text-foreground">
-                <c.icon className="h-3 w-3" /> {c.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="relative rounded-3xl border border-border bg-card p-2 shadow-card">
-          <div className="absolute inset-0 -z-10 rounded-3xl bg-gradient-hero opacity-20 blur-xl" />
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="Ask VisaHOBe AI for A4 visa documents, checklist, cover letter, passport review..."
-            rows={compact ? 1 : 2}
-            className="block w-full resize-none rounded-2xl bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
-          />
-          <div className="flex items-center justify-between px-2 pb-1">
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <IconBtn label="Attach"><Paperclip className="h-4 w-4" /></IconBtn>
-              <IconBtn label="Image"><ImageIcon className="h-4 w-4" /></IconBtn>
-              <IconBtn label="File"><FileText className="h-4 w-4" /></IconBtn>
-              <IconBtn label="Mic"><Mic className="h-4 w-4" /></IconBtn>
-            </div>
-            <button onClick={() => send()} disabled={!input.trim()} className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-hero text-white shadow-glow transition-smooth hover:scale-105 disabled:opacity-40">
-              <ArrowUp className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        {!compact && <p className="mt-2 text-center text-[11px] text-muted-foreground">VisaHOBe company preview — API keys will enable live model responses while keeping A4 document mode.</p>}
-      </div>
-    </div>
-  );
-}
-
-function PromptShortcuts({ style, compact, onPick }: { style: PromptStyle; compact: boolean; onPick: (text: string) => void; }) {
-  if (style === "segmented") {
-    return (
-      <div className="mx-auto w-full overflow-x-auto">
-        <div className="mx-auto inline-flex min-w-full items-stretch divide-x divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card sm:min-w-0">
-          {PROMPT_CARDS.map((c) => (
-            <button key={c.title} onClick={() => onPick(`${c.title}: ${c.desc}`)} className="group relative flex-1 px-3 py-2.5 text-center text-xs font-medium transition-smooth hover:bg-secondary">
-              <div className="flex items-center justify-center gap-1.5"><c.icon className="h-3.5 w-3.5 text-primary" /><span className="sm:hidden">{c.short}</span><span className="hidden sm:inline">{c.title}</span></div>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  if (style === "icons") {
-    return <div className="flex flex-wrap justify-center gap-3">{PROMPT_CARDS.map((c) => <button key={c.title} onClick={() => onPick(`${c.title}: ${c.desc}`)} className="group flex w-20 flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-hero text-white shadow-glow"><c.icon className="h-4 w-4" /></div><span className="text-[11px] font-medium">{c.short}</span></button>)}</div>;
-  }
-  if (style === "compact") {
-    return <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PROMPT_CARDS.map((c) => <button key={c.title} onClick={() => onPick(`${c.title}: ${c.desc}`)} className={cn("group relative overflow-hidden rounded-xl border border-border bg-card text-left shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow", compact ? "p-2.5" : "p-3")}><div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-50 transition-opacity group-hover:opacity-90", c.accent)} /><div className="flex items-center gap-2"><c.icon className="h-3.5 w-3.5 text-primary" /><span className="text-xs font-semibold">{c.title}</span></div>{!compact && <p className="mt-1 text-[11px] text-muted-foreground">{c.desc}</p>}</button>)}</div>;
-  }
-  return <div className="flex flex-wrap justify-center gap-2">{PROMPT_CARDS.map((c) => <button key={c.title} onClick={() => onPick(`${c.title}: ${c.desc}`)} className="group relative overflow-hidden rounded-full border border-border bg-card px-4 py-2 text-xs font-medium shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow"><div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-50 transition-opacity group-hover:opacity-90", c.accent)} /><span className="font-semibold">{c.title}</span>{!compact && <span className="ml-1.5 text-muted-foreground">· {c.desc}</span>}</button>)}</div>;
-}
-
-function IconBtn({ children, label }: { children: React.ReactNode; label: string }) {
-  return <button title={label} className="rounded-lg p-2 hover:bg-secondary" type="button">{children}</button>;
+ const { chats, activeChatId, newChat, addMessage } = useApp();
+ const { agentId, selectAgent, workspaceId } = useWorkspace();
+ const agent = AGENTS.find(a=>a.id===agentId) ?? AGENTS[0];
+ const activeChat = chats.find(c=>c.id===activeChatId);
+ const [input,setInput] = useState('');
+ const [pending,setPending] = useState<string[]>([]);
+ const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+ const thinking = !!activeChatId && pending.includes(activeChatId);
+ const [compact,setCompact] = useState(()=>localStorage.getItem('visahobe.compact')==='1');
+ const [style,setStyle] = useState<PromptStyle>(()=>{ const value=localStorage.getItem('visahobe.promptStyle');return value==='pill'||value==='compact'||value==='icons'?value:'segmented'; });
+ useEffect(()=>{localStorage.setItem('visahobe.promptStyle',style);},[style]);
+ useEffect(()=>{localStorage.setItem('visahobe.compact',compact?'1':'0');document.documentElement.classList.toggle('compact',compact);},[compact]);
+ useEffect(()=>()=>timers.current.forEach(clearTimeout),[]);
+ useEffect(()=>setInput(''),[agentId,workspaceId,activeChatId]);
+ const send = (text: string) => {
+  const content=text.trim(); if(!content || thinking) return;
+  const id=activeChatId ?? newChat(); const name=agent.name; const role=agent.role;
+  addMessage(id,{role:'user',content});setInput('');setPending(p=>[...p,id]);
+  timers.current.push(setTimeout(()=>{
+   addMessage(id,{role:'assistant',content:`### ${name} · ${role}\n\n**Preview draft — not live AI output.**\n\nRequested task: ${content}\n\n### Review checklist\n1. Collect the verified client details and relevant source documents.\n2. Identify missing information for this ${role.toLowerCase()} task.\n3. Prepare a consultant-reviewed draft with clear assumptions.\n4. Verify official sources, dates and requirements before use.\n5. Obtain human approval for submissions, payments, legal actions and partner verification.\n\n**Consultant note:** This is a sample workflow structure, not completed research or a submitted case. No client records or external services have been accessed.`});
+   setPending(p=>p.filter(x=>x!==id));
+  },850));
+ };
+ const hasChat=!!activeChat?.messages.length;
+ const styles=[{id:'segmented',icon:Rows3,label:'Segmented'},{id:'pill',icon:LayoutGrid,label:'Pills'},{id:'compact',icon:Grid2x2,label:'Cards'},{id:'icons',icon:FileText,label:'Icons'}] as const;
+ const shortcuts=[{label:'Visa checklist',icon:Globe2,prompt:'Prepare an A4 visa document checklist'},{label:'Cover letter',icon:FileText,prompt:'Draft a cover letter structure'},{label:'Client review',icon:Users,prompt:'Review missing client documents'},{label:'Campaign plan',icon:Megaphone,prompt:'Plan a recruitment marketing campaign'}];
+ return <div className={cn('assistant-shell mx-auto flex w-full max-w-[1200px] flex-col gap-7 px-4 pb-7 pt-7 sm:px-8 lg:px-10',compact&&'pt-4')}>
+  <div className="print:hidden flex flex-wrap items-center justify-between gap-3"><div><p className="mb-1 text-xs text-muted-foreground">Your agency, together.</p><h1 className="text-2xl font-semibold">AI team</h1></div><div className="flex items-center gap-2"><span className="hidden text-xs text-muted-foreground sm:inline">6 specialists</span><span className="flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-[11px] text-muted-foreground"><ShieldCheck className="h-3 w-3 text-primary" />Human-led</span></div></div>
+  <section className="print:hidden"><div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6',compact&&'gap-2')}>
+   {AGENTS.map(a=><Button key={a.id} variant="ghost" aria-label={`Select ${a.name}`} aria-pressed={agentId===a.id} onClick={()=>selectAgent(a.id)} data-selected={agentId===a.id} className={cn(a.color,'agent-tile h-auto min-w-0 flex-col items-start gap-0 rounded-lg border bg-card p-3 text-left shadow-card transition-smooth hover:-translate-y-0.5 hover:bg-card',compact?'py-2':'py-4')}>
+    <div className="mb-3 flex w-full items-center justify-between"><span className="agent-avatar grid h-9 w-9 place-items-center rounded-xl text-base font-semibold">{a.initial}</span><ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" /></div><span className="text-sm font-semibold">{a.name}</span><span className="mt-1 text-[11px] font-normal text-muted-foreground">{a.role}</span>
+   </Button>)}
+  </div></section>
+  {!hasChat ? <section className="flex flex-col items-center pt-1 text-center print:hidden">
+   <img src={mascot} width={1024} height={1024} alt="VisaHOBe travel assistant" className={cn('object-contain',compact?'h-20 w-20':'h-32 w-32')} />
+   <p className="mt-1 text-[11px] font-medium uppercase text-primary">{agent.specialty}</p>
+   <h2 className={cn('mt-3 font-semibold',compact?'text-2xl':'text-3xl sm:text-4xl')}>A little help. A lot of possibility.</h2>
+   <p className="mt-3 text-sm text-muted-foreground">What are we working on, with {agent.name}?</p>
+  </section> : <Conversation key={activeChatId} id="assistant-printable" className="h-[430px] min-h-[300px] flex-none"><ConversationContent className="gap-6 px-0"><div className="mb-2 border-b pb-3"><h2 className="text-lg font-semibold">{agent.name} · {agent.role}</h2><p className="text-xs text-muted-foreground">Consultant review draft · A4</p></div>{activeChat?.messages.map(m=><Message key={m.id} from={m.role}><MessageContent className={m.role==='user'?'group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground whitespace-pre-wrap':''}>{m.role==='assistant'?<MessageResponse>{m.content}</MessageResponse>:m.content}</MessageContent>{m.role==='assistant'&&<MessageActions className="print:hidden"><MessageAction tooltip="Copy response" onClick={()=>{navigator.clipboard.writeText(m.content).then(()=>toast.success('Response copied')).catch(()=>toast.error('Copy unavailable'));}}><Copy className="h-3.5 w-3.5" /></MessageAction></MessageActions>}</Message>)}{thinking&&<Shimmer>Preparing preview draft…</Shimmer>}</ConversationContent><ConversationScrollButton /></Conversation>}
+  <section className="mx-auto w-full max-w-[780px] print:hidden">
+   <PromptInput onSubmit={({text})=>send(text)} className="rounded-xl bg-card shadow-card [&>[data-slot=input-group]]:rounded-xl [&>[data-slot=input-group]]:border-border [&>[data-slot=input-group]]:bg-card">
+    <PromptInputTextarea value={input} onChange={e=>setInput(e.target.value)} aria-label={`Message ${agent.name}`} placeholder={`Ask ${agent.name} anything about ${agent.role.toLowerCase()}…`} className={cn('px-5 pt-5 text-sm',compact?'min-h-16':'min-h-[88px]')} />
+    <PromptInputFooter className="px-4 pb-3"><div className="flex items-center gap-2 text-xs text-muted-foreground"><span className={cn(agent.color,'agent-avatar grid h-6 w-6 place-items-center rounded-full text-[10px] font-semibold')}>{agent.initial}</span>{agent.name}<span className="border-l pl-2 text-[10px]">Preview</span></div><PromptInputSubmit status={thinking?'submitted':'ready'} disabled={!input.trim()||thinking} className="h-9 w-9 shrink-0 rounded-lg" aria-label="Send message">{!thinking&&<ArrowUp className="h-4 w-4" />}</PromptInputFooter>
+   </PromptInput>
+   <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-1 rounded-lg bg-muted/70 p-1">{styles.map(s=><Button key={s.id} variant="ghost" size="icon-xs" title={s.label} aria-label={`${s.label} shortcuts`} aria-pressed={style===s.id} onClick={()=>setStyle(s.id)} className={cn('h-7 w-8 rounded-md',style===s.id&&'bg-card text-primary shadow-sm')}><s.icon className="h-3.5 w-3.5" /></Button>)}</div><div className="flex gap-1"><Button size="icon-sm" variant="ghost" title={compact?'Cozy mode':'Compact mode'} aria-label="Toggle compact mode" aria-pressed={compact} onClick={()=>setCompact(v=>!v)}>{compact?<Maximize2 />:<Minimize2 />}</Button><Button size="sm" variant="ghost" className="text-xs text-muted-foreground" disabled={!hasChat} onClick={()=>window.print()}><Printer />A4 PDF</Button></div></div>
+   <div className={cn('mt-3',style==='segmented'?'flex divide-x overflow-hidden rounded-lg border bg-card':style==='compact'?'grid grid-cols-2 gap-2 sm:grid-cols-4':'flex flex-wrap gap-2')}>
+    {shortcuts.map(s=><Button key={s.label} variant="ghost" disabled={thinking} title={s.label} onClick={()=>send(s.prompt)} className={cn('h-9 min-w-0 text-[11px] font-normal text-muted-foreground',style==='segmented'?'flex-1 gap-1 rounded-none px-1':style==='pill'?'rounded-full border bg-card px-3':style==='compact'?'justify-start rounded-lg border bg-card px-3':'h-10 w-10 rounded-lg border bg-card p-0')} aria-label={s.label}><s.icon className="h-3.5 w-3.5" />{style!=='icons'&&<span className="truncate">{s.label}</span>}</Button>)}
+   </div>
+   {!compact&&<div className="mt-5 flex flex-col gap-1 border-t pt-4">{agent.prompts.map(p=><Button key={p} variant="ghost" disabled={thinking} className="h-auto justify-between whitespace-normal py-2 text-left text-xs font-normal text-muted-foreground" onClick={()=>send(p)}>{p}<ArrowUpRight className="shrink-0" /></Button>)}</div>}
+   <p className="mt-5 text-center text-[10px] text-muted-foreground">Preview responses · Session-only conversations · Verify all visa requirements before use.</p>
+  </section>
+ </div>;
 }
