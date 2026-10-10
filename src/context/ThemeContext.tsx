@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-type Theme = "light";
+type Theme = "light" | "dark";
 type Ctx = {
   theme: Theme;
   setTheme: (t: Theme) => void;
@@ -14,6 +14,7 @@ type Ctx = {
 const ThemeContext = createContext<Ctx | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(() => localStorage.getItem("vh-theme") === "dark" ? "dark" : "light");
   const [auroraEnabled, setAuroraEnabledState] = useState(true);
   const [auroraIntensity, setAuroraIntensityState] = useState(76);
 
@@ -30,10 +31,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("dark");
-    root.classList.add("light");
-    localStorage.setItem("vh-theme", "light");
-  }, []);
+    root.classList.toggle("dark", theme === "dark");
+    root.classList.toggle("light", theme === "light");
+    localStorage.setItem("vh-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -43,13 +44,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("vh-aurora-intensity", String(auroraIntensity));
   }, [auroraEnabled, auroraIntensity]);
 
-  const setTheme = () => undefined;
-  const toggle = () => undefined;
+  const toggle = () => setTheme((current) => current === "light" ? "dark" : "light");
   const setAuroraEnabled = (enabled: boolean) => setAuroraEnabledState(enabled);
   const setAuroraIntensity = (value: number) => setAuroraIntensityState(Math.min(100, Math.max(0, value)));
 
   return (
-    <ThemeContext.Provider value={{ theme: "light", setTheme, toggle, auroraEnabled, setAuroraEnabled, auroraIntensity, setAuroraIntensity }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggle, auroraEnabled, setAuroraEnabled, auroraIntensity, setAuroraIntensity }}>
       {children}
     </ThemeContext.Provider>
   );
